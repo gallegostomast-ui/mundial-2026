@@ -56,27 +56,46 @@
   .mini-note{font-size:12px;color:var(--ink-dim);margin-top:3px} .mini-note a,.ko-note a{color:var(--gold);text-decoration:none} .mini-note a:hover,.ko-note a:hover{text-decoration:underline}
   .ko-note.short{font-size:12.5px;padding:9px 14px;margin-top:0}
 
-  /* ---------- franja "Hoy" ---------- */
-  .today{margin:2px 0 16px;background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--line);
-    border-left:3px solid var(--qual);border-radius:11px;overflow:hidden}
+  /* ---------- franja "Hoy" (tarjetas) ---------- */
+  .today{margin:2px 0 16px}
   .today:empty{display:none}
-  .today-h{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .today-h{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
   .today-tag{font-family:'Archivo',sans-serif;font-weight:800;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-    color:#072a15;background:var(--qual);padding:2px 8px;border-radius:5px}
+    color:#072a15;background:var(--qual);padding:3px 9px;border-radius:5px}
   .today-tag.next{color:#3a2a00;background:var(--third)}
-  .today-date{font-weight:600;color:var(--ink);text-transform:capitalize;font-size:13px}
+  .today-date{font-weight:600;color:var(--ink);text-transform:capitalize;font-size:13.5px}
+  .today-live{display:inline-flex;align-items:center;gap:5px;font-family:'Archivo',sans-serif;font-weight:700;font-size:10px;
+    letter-spacing:.06em;text-transform:uppercase;color:#3a2a00;background:var(--third);padding:2px 8px;border-radius:5px}
+  .today-live .lvdot{width:5px;height:5px;border-radius:50%;background:#3a2a00;animation:pulse 1.2s infinite}
   .today-n{margin-left:auto;font-size:11.5px;color:var(--ink-faint)}
-  .today-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
-  .t-row{display:flex;align-items:center;gap:8px;padding:7px 14px;border-top:1px solid var(--line);font-size:13px;min-width:0}
-  .today-list .t-row:nth-child(-n+2){border-top:none}
-  .t-row .t-home{flex:1;text-align:right;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .t-row .t-away{flex:1;text-align:left;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .t-row .flag{font-size:14px}
-  .t-sc{font-family:'Archivo',sans-serif;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums;flex:none}
-  .t-sc.live{color:var(--third)}
-  .t-time{font-family:'Archivo',sans-serif;font-weight:700;font-size:12.5px;color:var(--ink);flex:none;font-variant-numeric:tabular-nums}
-  .t-fin{font-family:'Archivo',sans-serif;font-weight:700;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);background:var(--surface2);padding:1px 6px;border-radius:4px;flex:none}
-  .t-venue{font-size:10.5px;color:var(--ink-faint);flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
+  .today-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(252px,1fr));gap:11px;align-items:start}
+  .tc{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--line);border-radius:11px;
+    padding:10px 12px 11px;display:flex;flex-direction:column;gap:8px}
+  .tc-live{order:-1;border-color:var(--third);background:linear-gradient(180deg,rgba(243,194,75,.12),var(--bg2));
+    box-shadow:0 0 0 1px rgba(243,194,75,.3)}
+  .tc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:18px}
+  .tc-fin{font-family:'Archivo',sans-serif;font-weight:700;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-faint);background:var(--surface2);padding:2px 7px;border-radius:4px}
+  .tc-sched{font-family:'Archivo',sans-serif;font-weight:700;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-dim);background:var(--surface2);padding:2px 7px;border-radius:4px}
+  .tc-top .mchip.live{font-size:9.5px;padding:2px 8px}
+  .tc-venue{font-size:9.5px;color:var(--ink-faint);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .tc-main{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+  .tc-team{display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;min-width:0}
+  .tc-team .flag{font-size:23px;margin:0}
+  .tc-team .tn{font-weight:600;font-size:12px;line-height:1.15;word-break:break-word}
+  .tc-score{font-family:'Archivo',sans-serif;font-weight:800;font-size:27px;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:center}
+  .tc-score span{color:var(--ink-faint);font-size:18px;margin:0 2px;vertical-align:2px}
+  .tc-score.live{color:var(--third)}
+  .tc-kick{font-family:'Archivo',sans-serif;font-weight:800;font-size:19px;line-height:1;text-align:center;color:var(--ink)}
+  .tc-kick small{display:block;font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:3px}
+  .tc-goals{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;border-top:1px dashed var(--line);padding-top:7px}
+  .tc-gcol{display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:var(--ink-dim);min-width:0}
+  .tc-gcol.gh{text-align:right;align-items:flex-end}
+  .tc-gcol.ga{text-align:left;align-items:flex-start}
+  .tg-i{line-height:1.25} .tg-n{font-weight:500}
+  .tg-min{color:var(--ink-faint);font-variant-numeric:tabular-nums}
+  .tg-mk{color:var(--gold);font-weight:700;margin-left:1px} .tg-mk.og{color:var(--out)}
 
   /* ---------- notas al pie ---------- */
   .notes{margin-top:30px;border-top:1px solid var(--line);padding-top:18px}
@@ -652,23 +671,50 @@ function dayEvents(){
   for(const id in (state.koMeta||{})){ const k=state.koMeta[id]; if(k.kickoffUTC) ev.push({ms:k.kickoffUTC, type:'ko', k}); }
   return ev;
 }
-// Una fila compacta de la franja.
-function todayRow(e){
-  const t=viewerTime(e.ms);
-  let home, away, status, hs, as, minute, city;
+function evStatus(e){ return e.type==='group' ? matchStatus(e.m) : (e.k.status||'upcoming'); }
+// Goleadores de un lado a partir del campo crudo: "Nombre 67' (p)".
+function goalsHTML(field){
+  return parseScorers(field).map(g=>{
+    const mk = g.pen?'<span class="tg-mk">(p)</span>' : g.og?'<span class="tg-mk og">(ec)</span>' : '';
+    return `<span class="tg-i"><span class="tg-n">${g.name}</span> <span class="tg-min">${g.minute}</span>${mk}</span>`;
+  }).join('');
+}
+// Una tarjeta de partido de la franja "Hoy".
+function todayCard(e){
+  let homeCell, awayCell, status, hs, as, minute, city, stadium, hSc, aSc;
   if(e.type==='group'){
-    home=teamCell(e.m.home); away=teamCell(e.m.away);
-    status=matchStatus(e.m); hs=e.m.hs; as=e.m.as; minute=e.m.minute; city=e.m.city;
+    const m=e.m;
+    homeCell=teamCell(m.home); awayCell=teamCell(m.away);
+    status=matchStatus(m); hs=m.hs; as=m.as; minute=m.minute; city=m.city; stadium=m.stadium;
+    hSc=m.homeScorers; aSc=m.awayScorers;
   } else {
-    home=`<span class="tn">${e.k.homeName||'—'}</span>`; away=`<span class="tn">${e.k.awayName||'—'}</span>`;
-    status=e.k.status||'upcoming'; hs=e.k.hs; as=e.k.as; minute=e.k.minute; city=e.k.city;
+    const k=e.k;
+    homeCell=`<span class="flag">⚽</span><span class="tn">${k.homeName||'—'}</span>`;
+    awayCell=`<span class="flag">⚽</span><span class="tn">${k.awayName||'—'}</span>`;
+    status=k.status||'upcoming'; hs=k.hs; as=k.as; minute=k.minute; city=k.city; stadium=k.stadium;
+    hSc=k.homeScorers; aSc=k.awayScorers;
   }
-  let mid, chip;
-  if(status==='live'){ mid=`<b class="t-sc live">${hs}–${as}</b>`; chip=`<span class="mchip live"><span class="lvdot"></span>${minute||'En vivo'}</span>`; }
-  else if(status==='played'){ mid=`<b class="t-sc">${hs}–${as}</b>`; chip=`<span class="t-fin">Final</span>`; }
-  else { mid=`<span class="t-time">${t||'—'}</span>`; chip=''; }
-  const venue = city?`<span class="t-venue">${city}</span>`:'';
-  return `<div class="t-row t-${status}"><span class="t-home">${home}</span>${mid}<span class="t-away">${away}</span>${chip}${venue}</div>`;
+  let chip, center;
+  if(status==='live'){
+    chip=`<span class="mchip live"><span class="lvdot"></span>EN VIVO${minute?` · ${minute}`:''}</span>`;
+    center=`<div class="tc-score live">${hs}<span>–</span>${as}</div>`;
+  } else if(status==='played'){
+    chip=`<span class="tc-fin">Final</span>`;
+    center=`<div class="tc-score">${hs}<span>–</span>${as}</div>`;
+  } else {
+    chip=`<span class="tc-sched">Programado</span>`;
+    center=`<div class="tc-kick">${viewerTime(e.ms)||'—'}<small>tu hora</small></div>`;
+  }
+  const venue = city?`<span class="tc-venue">📍 ${city}${stadium?` · ${stadium}`:''}</span>`:'';
+  const gh=goalsHTML(hSc), ga=goalsHTML(aSc);
+  const goals=(gh||ga)
+    ? `<div class="tc-goals"><div class="tc-gcol gh">${gh}</div><div class="tc-gcol ga">${ga}</div></div>` : '';
+  return `<div class="tc tc-${status}">
+    <div class="tc-top">${chip}${venue}</div>
+    <div class="tc-main">
+      <div class="tc-team">${homeCell}</div>${center}<div class="tc-team">${awayCell}</div>
+    </div>${goals}
+  </div>`;
 }
 function renderToday(){
   const el=document.getElementById('todayStrip'); if(!el) return;
@@ -682,12 +728,17 @@ function renderToday(){
     const k=localDayKey(fut[0].ms);
     list=ev.filter(e=>localDayKey(e.ms)===k); isToday=false;
   }
-  list.sort((a,b)=>a.ms-b.ms);
+  // orden: en vivo -> por jugar (por horario) -> terminados
+  const rank={live:0, upcoming:1, played:2};
+  list.sort((a,b)=> (rank[evStatus(a)]-rank[evStatus(b)]) || (a.ms-b.ms));
+  const liveN=list.filter(e=>evStatus(e)==='live').length;
   const fecha=new Date(list[0].ms).toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
   el.innerHTML=
     `<div class="today-h"><span class="today-tag ${isToday?'':'next'}">${isToday?'Hoy':'Próxima jornada'}</span>`
-    + `<span class="today-date">${fecha}</span><span class="today-n">${list.length} partido${list.length!==1?'s':''}</span></div>`
-    + `<div class="today-list">${list.map(todayRow).join('')}</div>`;
+    + `<span class="today-date">${fecha}</span>`
+    + (liveN?`<span class="today-live"><span class="lvdot"></span>${liveN} en vivo</span>`:'')
+    + `<span class="today-n">${list.length} partido${list.length!==1?'s':''}</span></div>`
+    + `<div class="today-list">${list.map(todayCard).join('')}</div>`;
 }
 
 function renderGroups(){
@@ -755,7 +806,7 @@ function renderThirds(){
 function normScorers(s){
   return String(s).replace(/[“”]/g,'"').replace(/[‘’]/g,"'");
 }
-// "{\"J. Quiñones 9'\",\"R. Jiménez 67'(OG)\"}" -> [{name, og, pen}]
+// "{\"J. Quiñones 9'\",\"R. Jiménez 67'(OG)\"}" -> [{name, minute, og, pen}]
 function parseScorers(field){
   if(!field || String(field).toLowerCase()==='null') return [];
   let s=normScorers(field).trim().replace(/^\{/,'').replace(/\}$/,'');
@@ -769,7 +820,10 @@ function parseScorers(field){
     const og=/\(o\.?g\.?\)/i.test(it);
     const pen=/\((?:p|pen)\.?\)/i.test(it);
     let name=mm[1].replace(/\s*\((?:og|o\.g|p|pen)\.?\)\s*/ig,'').trim().replace(/[,'"\s]+$/,'').trim();
-    if(name) out.push({name, og, pen});
+    // minuto completo (incluye descuento: 45'+5', 90'+8')
+    let minute=(it.slice(mm[1].length).match(/^\d+'?(?:\+\d+'?)?/)||[mm[2]])[0];
+    if(minute && !minute.endsWith("'")) minute+="'";
+    if(name) out.push({name, minute, og, pen});
   }
   return out;
 }
@@ -1037,7 +1091,8 @@ function koMetaFromGames(games){
       status, hs, as,
       minute: status==='live' ? liveMinute(x.time_elapsed) : null,
       homeName: x.home_team_name_en || x.home_team_label || null,
-      awayName: x.away_team_name_en || x.away_team_label || null
+      awayName: x.away_team_name_en || x.away_team_label || null,
+      homeScorers: x.home_scorers, awayScorers: x.away_scorers
     };
   }
   return map;
