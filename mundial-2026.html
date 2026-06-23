@@ -278,6 +278,32 @@
     .bracket-rounds{display:block}
   }
 
+  /* ---------- simulador ---------- */
+  .sim-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 8px}
+  .sim-intro{flex:1;min-width:240px;font-size:12.5px;color:var(--ink-dim)} .sim-intro b{color:var(--ink)}
+  .sim-help{font-size:12px;color:var(--ink-faint);margin-bottom:14px;max-width:880px} .sim-help b{color:var(--ink-dim)}
+  .sim-champ{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;color:var(--ink);
+    background:linear-gradient(90deg,rgba(243,194,75,.18),transparent);border:1px solid var(--gold);
+    border-radius:10px;padding:11px 16px;margin-bottom:14px}
+  .sim-champ .flag{font-size:20px}
+  /* filas editables del simulador */
+  .sm{display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;gap:6px;padding:5px 0;font-size:13px;border-top:1px solid var(--line)}
+  .matches .mh + .sm{border-top:none}
+  .sm .ht{text-align:right;font-weight:600} .sm .at{text-align:left;font-weight:600}
+  .sm .ht .flag,.sm .at .flag{font-size:14px} .sm .dash{color:var(--ink-faint);font-size:12px}
+  .sim-sc{width:30px;height:25px;text-align:center;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+    border-radius:5px;font:inherit;font-size:13px;font-variant-numeric:tabular-nums}
+  .sim-sc:focus{outline:none;border-color:var(--gold);background:#0c1c14}
+  .sim-sc::-webkit-outer-spin-button,.sim-sc::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .sim-sc[type=number]{-moz-appearance:textfield}
+  /* slots clickeables del bracket del simulador */
+  .sim-slot{cursor:pointer;border-radius:6px;transition:background .1s}
+  .sim-slot:hover{background:rgba(180,210,190,.07)}
+  .sim-slot.sim-win{background:rgba(67,221,134,.14)}
+  .sim-slot.sim-win .kteam{color:var(--qual);font-weight:800}
+  .sim-slot.sim-win .kteam::after{content:" ✓";color:var(--qual);font-weight:700}
+  #simPoster .center .bmatch.has-champ,.mk-finalcard .bmatch.has-champ{border-color:var(--gold);box-shadow:0 0 0 2px rgba(243,194,75,.4)}
+
   footer{text-align:center;font-size:11.5px;color:var(--ink-faint);padding:34px 18px 0;line-height:1.7}
   .hidden{display:none}
   @media(max-width:560px){.cols{grid-template-columns:1fr}.meta{text-align:left}.head-top{align-items:flex-start}}
@@ -303,6 +329,7 @@
       <button class="tab" data-view="terceros">Mejores terceros</button>
       <button class="tab" data-view="llave">Llave eliminatoria</button>
       <button class="tab" data-view="goleadores">Goleadores</button>
+      <button class="tab" data-view="simulador">Simulador</button>
     </nav>
   </div>
 </header>
@@ -345,6 +372,28 @@
       </div>
       <table class="thirds-t scorers-t"><tbody id="scorersBody"></tbody></table>
     </div>
+  </section>
+
+  <section id="simulador" class="hidden">
+    <div class="sim-bar">
+      <div class="sim-intro"><b>Simulador</b> — sandbox aparte. Parte del estado real en vivo; lo que cargues acá <b>no toca</b> los datos reales ni las otras pestañas.</div>
+      <button class="btn ghost" id="simReset">Reiniciar al estado real</button>
+    </div>
+    <p class="sim-help">Cargá el marcador de los partidos <b>no finalizados</b> (los que faltan, en vivo incluidos). Los finalizados vienen con su resultado real, bloqueados. Recalculo las 12 tablas, los terceros y la llave. En el bracket, <b>tocá al equipo que avanza</b> en cada llave: se propaga solo hasta el campeón.</p>
+
+    <div id="simChampion"></div>
+
+    <div class="section-t">Grupos del escenario</div>
+    <div class="grid sim-groups" id="simGroups"></div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-h"><h2>Terceros del escenario</h2><p>Puntos → diferencia de gol → goles a favor. Pasan los <b>8 mejores</b> (línea de corte).</p></div>
+      <table class="thirds-t"><tbody id="simThirdsBody"></tbody></table>
+    </div>
+
+    <div class="section-t">Llave del escenario · elegí ganadores</div>
+    <div class="bracket-poster" id="simPoster"></div>
+    <div class="bracket-rounds" id="simRounds"></div>
   </section>
 
   <section id="notas" class="notes">
@@ -1111,6 +1160,178 @@ function renderKO(){
   renderKOMobile(A);
 }
 
+/* ===========================================================
+   SIMULADOR  — sandbox aparte. Reusa el MOTOR (standings, rankThirds,
+   thirdsAssignment, Anexo C) y el BRACKET (koCard) sobre datos PARALELOS,
+   sin tocar ni los datos reales ni las otras pestañas.
+   =========================================================== */
+let simState = { matches: [] };   // copia paralela de los partidos de grupo
+let simPicks = {};                // {idPartidoKO: códigoEquipoGanador elegido}
+let simSide  = 'l';               // mitad del bracket elegida en mobile
+
+// Ejecuta fn con el motor "viendo" los datos del simulador, y restaura siempre.
+function withSim(fn){
+  const real = state.matches;
+  state.matches = simState.matches;
+  try { return fn(); } finally { state.matches = real; }
+}
+// Snapshot del estado real: finalizados bloqueados con su resultado; el resto editable y vacío.
+function simInit(){
+  simState.matches = state.matches.map(m=>{
+    const done = matchStatus(m)==='played';   // criterio: ESTADO, no la jornada
+    return {
+      group:m.group, home:m.home, away:m.away,
+      hs: done?m.hs:null, as: done?m.as:null,
+      status: done?'played':'upcoming', locked: done,
+      kickoffUTC:m.kickoffUTC, venueTime:m.venueTime, dateLabel:m.dateLabel, city:m.city, stadium:m.stadium
+    };
+  });
+  simPicks = {};
+}
+
+// Equipo de un slot de 16avos sobre los datos del simulador (llamar dentro de withSim).
+function simSlotTeam(slot, amap){
+  if(slot.t==='w'){ const s=standings(slot.g)[0]; return s?s.team:null; }
+  if(slot.t==='r'){ const s=standings(slot.g)[1]; return s?s.team:null; }
+  if(slot.t==='3'){ const tg=amap[slot.lead]; const s=tg?standings(tg)[2]:null; return s?s.team:null; }
+  return null;
+}
+function simSeed(slot, amap){
+  if(slot.t==='w') return '1° '+slot.g;
+  if(slot.t==='r') return '2° '+slot.g;
+  if(slot.t==='3') return '3° '+(amap[slot.lead]||'?');
+  return '';
+}
+// Calcula los participantes de cada llave y PURGA los ganadores elegidos que dejaron de
+// ser válidos (propagación/consistencia): si cambia un grupo o un pick aguas arriba, todo lo
+// de abajo que dependía de eso se limpia. Devuelve {part, amap, champion}.
+function simResolve(){
+  const amap = withSim(()=> (thirdsAssignment()||{}).map || {});
+  const part = {};
+  withSim(()=>{ for(const t of R32_TIES) part[t.id]=[simSlotTeam(t.a,amap), simSlotTeam(t.b,amap)]; });
+  // ganador VÁLIDO de una llave = el pick, solo si sigue siendo uno de sus participantes
+  const valid = id => { const p=simPicks[id]; return (p!=null && part[id] && part[id].indexOf(p)>=0) ? p : null; };
+  const prune = id => { if(simPicks[id]!=null && valid(id)==null) delete simPicks[id]; };
+  R32_TIES.forEach(t=>prune(t.id));                         // 16avos: participantes fijos -> purgar pick inválido
+  const round = ties => ties.forEach(t=>{ part[t.id]=[valid(t.a), valid(t.b)]; prune(t.id); });
+  round(R16_TIES); round(QF_TIES); round(SF_TIES);
+  part[FINAL_TIE.id]=[valid(FINAL_TIE.a), valid(FINAL_TIE.b)]; prune(FINAL_TIE.id);
+  const loser = id => { const w=valid(id), pr=part[id]; if(!w||!pr) return null; return pr[0]===w?pr[1]:pr[0]; };
+  part[THIRD_TIE.id]=[loser(THIRD_TIE.a), loser(THIRD_TIE.b)]; prune(THIRD_TIE.id);
+  return { part, amap, champion: valid(FINAL_TIE.id) };
+}
+
+// Un casillero clickeable del bracket del simulador.
+function simSlotHTML(seed, matchId, team, winner){
+  if(!team) return `<div class="kslot tbd"><span class="kteam">por definir</span></div>`;
+  const win = winner && winner===team;
+  return `<div class="kslot sim-slot${win?' sim-win':''}" data-m="${matchId}" data-t="${team}">`
+    + (seed?`<span class="kseed">${seed}</span>`:'')
+    + `<span class="kteam">${teamCell(team)}</span></div>`;
+}
+function simCard(tie, r32, part, amap, isThird){
+  const [a,b]=part[tie.id]||[null,null], w=simPicks[tie.id]||null;
+  let sa, sb;
+  if(r32){ sa=simSlotHTML(simSeed(tie.a,amap), tie.id, a, w); sb=simSlotHTML(simSeed(tie.b,amap), tie.id, b, w); }
+  else if(isThird){ sa=simSlotHTML('Pierde 1', tie.id, a, w); sb=simSlotHTML('Pierde 2', tie.id, b, w); }
+  else { sa = a?simSlotHTML('', tie.id, a, w):`<div class="kslot tbd"><span class="kteam">Ganador #${tie.a}</span></div>`;
+         sb = b?simSlotHTML('', tie.id, b, w):`<div class="kslot tbd"><span class="kteam">Ganador #${tie.b}</span></div>`; }
+  let html = koCard(tie, sa, sb);
+  if(tie.id===FINAL_TIE.id && w) html = html.replace('class="bmatch"','class="bmatch has-champ"');
+  return html;
+}
+function simCardById(id, part, amap){
+  const tie=TIE_BY_ID[id], r32 = id>=73 && id<=88;
+  return simCard(tie, r32, part, amap, id===THIRD_TIE.id);
+}
+
+function renderSimGroups(){
+  const grid=document.getElementById('simGroups'); if(!grid) return; grid.innerHTML='';
+  withSim(()=>{
+    for(const g of GROUPS){
+      let tb='';
+      standings(g).forEach((s,i)=>{
+        const cls=i===0?'q1':i===1?'q2':i===2?'q3':'q4', d=s.gd, dgc=d>0?'pos-v':d<0?'neg-v':'';
+        tb+=`<tr class="${cls}"><td class="team"><span class="pos">${i+1}</span>${teamCell(s.team)}${s.h2hTie?'<span class="h2h">H2H</span>':''}</td>`
+          + `<td class="calc">${s.pj}</td><td class="dg calc ${dgc}">${d>0?'+':''}${d}</td><td>${s.gf}</td><td class="pts">${s.pts}</td></tr>`;
+      });
+      const list = simState.matches.map((m,i)=>({m,i})).filter(x=>x.m.group===g)
+        .sort((a,b)=>(a.m.kickoffUTC||0)-(b.m.kickoffUTC||0));
+      let mh='';
+      for(const {m,i} of list){
+        if(m.locked){
+          mh+=`<div class="m m-played"><span class="ht">${teamCell(m.home)}</span><span class="mid">${m.hs} – ${m.as}</span>`
+            + `<span class="at">${teamCell(m.away)}</span><span class="mstat"><span class="mchip done">Final · real</span></span></div>`;
+        } else {
+          mh+=`<div class="sm"><span class="ht">${teamCell(m.home)}</span>`
+            + `<input class="sim-sc" type="number" min="0" inputmode="numeric" data-i="${i}" data-side="h" value="${m.hs??''}">`
+            + `<span class="dash">–</span>`
+            + `<input class="sim-sc" type="number" min="0" inputmode="numeric" data-i="${i}" data-side="a" value="${m.as??''}">`
+            + `<span class="at">${teamCell(m.away)}</span></div>`;
+        }
+      }
+      grid.insertAdjacentHTML('beforeend',
+        `<div class="group"><div class="group-h"><span class="g">${g}</span><span class="lbl">Grupo</span></div>`
+        + `<table><thead><tr><th class="team">Selección</th><th>PJ</th><th>DG</th><th>GF</th><th>Pts</th></tr></thead><tbody>${tb}</tbody></table>`
+        + `<div class="matches"><div class="mh">Cargá los que faltan</div>${mh}</div></div>`);
+    }
+  });
+}
+function renderSimThirds(){
+  const body=document.getElementById('simThirdsBody'); if(!body) return;
+  withSim(()=>{
+    const arr=rankThirds();
+    body.innerHTML = arr.map((row,i)=>{
+      const s=row.s, inn=i<8;
+      let h=`<tr class="${inn?'in':'out'}"><td class="rk">${i+1}</td>`
+        + `<td class="team" style="text-align:left">${teamCell(s.team)}<span class="gtag">3° ${row.g}</span></td>`
+        + `<td>${s.pts} pts</td><td style="color:var(--ink-dim)">DG ${s.gd>0?'+':''}${s.gd}</td>`
+        + `<td style="color:var(--ink-dim)">${s.gf} GF</td>`
+        + `<td style="font-family:'Archivo';font-weight:700;color:${inn?'var(--third)':'var(--out)'}">${inn?'CLASIFICA':'AFUERA'}</td></tr>`;
+      if(i===7) h+=`<tr><td colspan="6"><div class="cutbar"><span>◂ línea de clasificación — pasan los 8 de arriba ▸</span></div></td></tr>`;
+      return h;
+    }).join('');
+  });
+}
+function renderSimBracket(part, amap){
+  // desktop: póster de dos mitades (misma estructura que la Llave)
+  const col=(rc,l,ties,r32)=>`<div class="round ${rc}"><div class="rlabel">${l}</div><div class="rcol">`
+    + ties.map(t=>`<div class="bcell">${simCard(t,r32,part,amap)}</div>`).join('')+`</div></div>`;
+  const left  = col('r-r32','16avos',R32_TIES.slice(0,8),true)+col('r-r16','Octavos',R16_TIES.slice(0,4),false)
+              + col('r-qf','Cuartos',QF_TIES.slice(0,2),false)+col('r-sf','Semis',SF_TIES.slice(0,1),false);
+  const right = col('r-sf','Semis',SF_TIES.slice(1),false)+col('r-qf','Cuartos',QF_TIES.slice(2),false)
+              + col('r-r16','Octavos',R16_TIES.slice(4),false)+col('r-r32','16avos',R32_TIES.slice(8),true);
+  const center= `<div class="center"><div class="rlabel">Final</div><div class="center-body">${simCard(FINAL_TIE,false,part,amap)}`
+              + `<div class="thirdplace"><div class="tp-h">3er puesto</div>${simCard(THIRD_TIE,false,part,amap,true)}</div></div></div>`;
+  const poster=document.getElementById('simPoster');
+  if(poster) poster.innerHTML=`<div class="half half-l">${left}</div>${center}<div class="half half-r">${right}</div>`;
+  // mobile: por mitad, con pares conectados
+  const mkPair=p=>{ const [a,b,c]=p; return `<div class="mk-pair">${simCardById(a,part,amap)}${simCardById(b,part,amap)}`
+    + `<div class="mk-join"><span class="mk-jline"></span>se cruzan en <b>${koRoundName(c)} #${c}</b></div></div>`; };
+  const side=k=>KO_SIDES[k].rounds.map(rd=>`<div class="mk-round"><h3>${rd.name}</h3>`
+    + (rd.solo?rd.solo.map(id=>`<div class="mk-pair mk-solo">${simCardById(id,part,amap)}</div>`).join(''):rd.pairs.map(mkPair).join(''))+`</div>`).join('');
+  const fin = `<div class="mk-round"><h3>Semifinales · las dos mitades</h3><div class="mk-pair">${simCardById(101,part,amap)}${simCardById(102,part,amap)}`
+    + `<div class="mk-join"><span class="mk-jline"></span>se cruzan en la <b>Final #104</b></div></div></div>`
+    + `<div class="mk-round"><h3>Final</h3><div class="mk-pair mk-solo mk-finalcard">${simCardById(104,part,amap)}</div></div>`
+    + `<div class="mk-round"><h3>Tercer puesto</h3><div class="mk-pair mk-solo">${simCardById(103,part,amap)}</div></div>`;
+  const rounds=document.getElementById('simRounds');
+  if(rounds){
+    const tab=(k,l)=>`<button class="mk-tab ${simSide===k?'on':''}" data-side="${k}">${l}</button>`;
+    const pane=(k,h)=>`<div class="mk-pane ${simSide===k?'on':''}" data-pane="${k}">${h}</div>`;
+    rounds.innerHTML=`<div class="mk-tabs">${tab('l','Lado izquierdo')}${tab('r','Lado derecho')}${tab('f','Final')}</div>`
+      + pane('l',side('l'))+pane('r',side('r'))+pane('f',fin);
+  }
+}
+function renderSim(){
+  if(!simState.matches.length) simInit();
+  const {part, amap, champion} = simResolve();
+  renderSimGroups();
+  renderSimThirds();
+  const ch=document.getElementById('simChampion');
+  if(ch) ch.innerHTML = champion ? `<div class="sim-champ">🏆 Campeón del escenario: ${teamCell(champion)}</div>` : '';
+  renderSimBracket(part, amap);
+}
+
 function renderMeta(){
   document.getElementById('mPlayed').textContent=playedCount();
   document.getElementById('mClosed').textContent=closedCount();
@@ -1122,10 +1343,47 @@ document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click',()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
     tab.classList.add('on');
-    ['grupos','terceros','llave','goleadores'].forEach(v=>
+    ['grupos','terceros','llave','goleadores','simulador'].forEach(v=>
       document.getElementById(v).classList.toggle('hidden',v!==tab.dataset.view));
+    if(tab.dataset.view==='simulador') renderSim();   // arma/actualiza el sandbox al abrirlo
+    // volver al inicio de la nueva pestaña (scroll vertical de la página).
+    // No toca el scroll horizontal interno del bracket (es de su propio contenedor).
+    window.scrollTo({top:0, left:0, behavior:'auto'});
   });
 });
+
+/* ---- simulador: handlers (no tocan datos reales) ---- */
+// editar marcadores de los partidos que faltan
+document.getElementById('simGroups').addEventListener('input', ev=>{
+  const inp=ev.target.closest('.sim-sc'); if(!inp) return;
+  const i=+inp.dataset.i, side=inp.dataset.side, m=simState.matches[i]; if(!m||m.locked) return;
+  const v = inp.value==='' ? null : Math.max(0, parseInt(inp.value,10));
+  if(side==='h') m.hs=v; else m.as=v;
+  m.status = (m.hs!=null && m.as!=null) ? 'played' : 'upcoming';   // cuenta solo si está completo
+  renderSim();
+  const again=document.querySelector(`.sim-sc[data-i="${i}"][data-side="${side}"]`);   // mantener foco
+  if(again){ again.focus(); const val=again.value; again.value=''; again.value=val; }
+});
+// elegir ganador de una llave (clic en el equipo que avanza); volver a clic = deseleccionar
+function simPickHandler(ev){
+  const sl=ev.target.closest('.sim-slot'); if(!sl) return;
+  const m=+sl.dataset.m, t=sl.dataset.t;
+  if(simPicks[m]===t) delete simPicks[m]; else simPicks[m]=t;
+  renderSim();   // recalcula participantes y limpia lo que quedó colgando aguas abajo
+}
+document.getElementById('simPoster').addEventListener('click', simPickHandler);
+document.getElementById('simRounds').addEventListener('click', ev=>{
+  const tabb=ev.target.closest('.mk-tab');
+  if(tabb){ simSide=tabb.dataset.side;
+    const r=document.getElementById('simRounds');
+    r.querySelectorAll('.mk-tab').forEach(x=>x.classList.toggle('on',x.dataset.side===simSide));
+    r.querySelectorAll('.mk-pane').forEach(x=>x.classList.toggle('on',x.dataset.pane===simSide));
+    return;
+  }
+  simPickHandler(ev);
+});
+// reiniciar al estado real (borra hipótesis y ganadores elegidos)
+document.getElementById('simReset').addEventListener('click',()=>{ simInit(); renderSim(); });
 
 /* ===========================================================
    CONEXIÓN EN VIVO  — reemplaza la siembra por datos de la API.

@@ -21,11 +21,19 @@ Abrir con doble clic en cualquier navegador. No necesita servidor ni build. Solo
   *en vivo · parcial* o *cerrado*.
 - **Mejores terceros**: los 12 terceros en una sola tabla con la línea de corte en el 8°.
 - **Llave**: **bracket póster de dos mitades** (izquierda y derecha convergiendo a la final en
-  el centro), con sede y horario por llave. En pantalla angosta colapsa a una vista por rondas
-  en una sola columna. La asignación de terceros se resuelve por **Anexo C** en cada refresco
-  (provisoria hasta que cierren los 12 grupos, señalada con un punto dorado).
+  el centro), con sede y horario por llave. En pantalla angosta colapsa a una vista por **mitad**
+  (selector Izq/Der/Final) con los pares conectados a su partido hijo. La asignación de terceros
+  se resuelve por **Anexo C** en cada refresco. Cada slot se marca **provisorio** (punto dorado)
+  o **definitivo**: un cruce deja de ser provisorio solo cuando la posición del equipo es
+  *matemáticamente inamovible* (calculado, ver más abajo), no por número de fecha.
 - **Goleadores**: tabla ordenada por goles, parseada del campo de goleadores de la API
   (con sus limitaciones — ver abajo). Penales marcados; sin asistencias.
+- **Simulador**: **sandbox aislado** que parte del estado real en vivo pero no lo toca. Cargás
+  los marcadores de los partidos de grupos **no finalizados** (los finalizados vienen reales y
+  bloqueados), recalcula las 12 tablas y los terceros, resuelve el **Anexo C** del escenario y
+  arma el **árbol interactivo** completo. En cada llave elegís al ganador con un clic y se propaga
+  solo hasta coronar campeón; si cambiás un resultado o un ganador aguas arriba, todo lo de abajo
+  que dependía se limpia (nunca queda un campeón huérfano). Botón para reiniciar al estado real.
 
 Los datos vienen en vivo de la API; si falla, se siembra con los resultados conocidos al
 20/6/2026 (`SEED_RESULTS`, parciales).
@@ -157,6 +165,26 @@ partido (`parseScorers` → `scorerRanking`), que vienen **sin normalizar**:
 
 ---
 
+## Simulador (sandbox aislado)
+
+Una pestaña aparte para proyectar escenarios sin tocar los datos reales ni las otras pestañas.
+
+- **Datos paralelos**: `simInit()` toma un snapshot del estado real (`simState.matches`). Los
+  partidos **finalizados** quedan bloqueados con su resultado real; el resto, editables y vacíos.
+  El criterio de "editable" es el **estado** (no finalizado), nunca la jornada.
+- **Reusa el motor sobre esos datos**: `withSim(fn)` intercambia `state.matches` por los del
+  simulador, corre `standings` / `rankThirds` / `thirdsAssignment` (las **mismas** funciones) y
+  restaura siempre (`try/finally`). No se modifica ninguna función del motor ni del bracket.
+- **Recalcula** las 12 tablas (1°/2° con desempate 2026), la tabla de terceros con su línea de
+  corte y los cruces de 16avos vía **Anexo C**, a medida que cargás resultados.
+- **Árbol interactivo** (reusa `koCard` y el bracket responsive): clic en el equipo que avanza →
+  se propaga al partido siguiente hasta el campeón. `simResolve()` recalcula los participantes de
+  cada llave de arriba hacia abajo y **purga los ganadores elegidos que dejaron de ser válidos**,
+  así nunca queda un equipo avanzando desde una llave que cambió (sin "campeón huérfano").
+- **Reiniciar al estado real**: re-snapshotea desde la API y borra hipótesis y picks.
+
+---
+
 ## Limitaciones conocidas
 
 - Dato anómalo de la fuente: el partido **inaugural** viene 1 h corrido respecto al oficial
@@ -169,11 +197,9 @@ partido (`parseScorers` → `scorerRanking`), que vienen **sin normalizar**:
 
 ## Pendientes (no aplicados todavía)
 
-1. **Franja "Hoy" como tarjetas con goleadores por partido**: rediseñar el resumen de la jornada
-   de filas compactas a tarjetas que muestren también quién hizo los goles de cada partido.
-2. **Partidos de cada grupo en un desplegable**: que el fixture de los 6 partidos de cada grupo
+1. **Partidos de cada grupo en un desplegable**: que el fixture de los 6 partidos de cada grupo
    esté colapsado por defecto (`<details>` o similar) para dejar la tabla más limpia.
-3. **Notas contextuales por pestaña**: hoy las notas largas están todas juntas al pie; pasarlas
+2. **Notas contextuales por pestaña**: hoy las notas largas están todas juntas al pie; pasarlas
    a notas contextuales por pestaña (cada vista con su nota propia, expandible).
 
 ---
