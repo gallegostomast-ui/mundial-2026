@@ -66,7 +66,9 @@
     background:var(--surface);color:var(--ink-dim);font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.12s}
   .today-nav:hover:not(:disabled){color:var(--ink);border-color:var(--gold)}
   .today-nav:disabled{opacity:.3;cursor:default}
-  .today-hd{display:flex;align-items:center;gap:8px;min-width:0}
+  /* ancho fijo (el de la fecha más larga + tag) y contenido centrado: las flechas ‹ › no se
+     mueven al navegar entre días, sin importar el largo del texto de la fecha */
+  .today-hd{display:flex;align-items:center;justify-content:center;gap:8px;flex:none;width:240px;text-align:center}
   .today-h-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .today-today{appearance:none;cursor:pointer;flex:none;font-family:'Archivo',sans-serif;font-weight:700;font-size:10px;
     letter-spacing:.06em;text-transform:uppercase;color:#072a15;background:var(--qual);border:none;padding:5px 11px;border-radius:6px}
@@ -99,11 +101,17 @@
   .tc-top .mchip.live{font-size:9.5px;padding:2px 8px}
   /* sede en 1 línea (alto fijo): si no entra, elipsa — es la sede, no un nombre de equipo */
   .tc-venue{font-size:9.5px;color:var(--ink-faint);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
-  .tc-main{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+  /* minmax(0,1fr) en los lados -> cada equipo tiene un ancho fijo y parejo y NO ensancha la
+     tarjeta: un nombre largo se acomoda en 2 líneas dentro de ese espacio (no agranda el card) */
+  .tc-main{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}
   /* reserva 2 líneas para el nombre: 1 línea y 2 líneas ocupan lo mismo -> marcadores alineados */
   .tc-team{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;gap:3px;min-width:0;min-height:54px}
   .tc-team .flag{font-size:23px;margin:0}
-  .tc-team .tn{font-weight:600;font-size:12px;line-height:1.15;word-break:break-word}
+  /* envuelve por palabras (Corea del Sur, Ciudad de México) y solo parte una palabra larga si
+     no entra de ninguna forma; sin guiones de corte; nunca se trunca con "..." */
+  .tc-team .tn{font-weight:600;font-size:12px;line-height:1.15;overflow-wrap:break-word;word-break:normal;hyphens:none}
+  /* rótulo de origen del slot KO cuando el equipo no está definido (traducido, sin bandera) */
+  .tc-team .tn.tc-tbd{font-weight:500;font-style:italic;font-size:11px;color:var(--third)}
   .tc-score{font-family:'Archivo',sans-serif;font-weight:800;font-size:27px;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:center}
   .tc-score span{color:var(--ink-faint);font-size:18px;margin:0 2px;vertical-align:2px}
   .tc-score.live{color:var(--third)}
@@ -795,9 +803,15 @@ function todayCard(e){
     status=matchStatus(m); hs=m.hs; as=m.as; minute=m.minute; city=m.city; stadium=m.stadium;
     hSc=m.homeScorers; aSc=m.awayScorers;
   } else {
-    const k=e.k;
-    homeCell=`<span class="flag">⚽</span><span class="tn">${k.homeName||'—'}</span>`;
-    awayCell=`<span class="flag">⚽</span><span class="tn">${k.awayName||'—'}</span>`;
+    // eliminatorias: mismo dato que la Llave (standings + Anexo C), traducido NAME/FLAG.
+    // Si la API ya definió el equipo (k.home/k.away código) se muestra ese; si no, se resuelve
+    // por el bracket (equipo provisorio marcado, o placeholder traducido). Nunca inglés ni pelota.
+    const k=e.k, tie=TIE_BY_ID[e.id], assign=thirdsAssignment();
+    // 16avos (73-88): los slots ya son objetos (grupo/3°). Rondas siguientes: a/b son IDs de
+    // partido -> ganador (o perdedor en el 3er puesto), igual que arma el bracket.
+    const wrap = side => (e.id<=88) ? side : {t:(e.id===103?'ml':'mw'), m:side};
+    homeCell = k.home ? teamCell(k.home) : (tie?slotInfoCell(koSlotInfo(wrap(tie.a), assign)):'<span class="tn tc-tbd">—</span>');
+    awayCell = k.away ? teamCell(k.away) : (tie?slotInfoCell(koSlotInfo(wrap(tie.b), assign)):'<span class="tn tc-tbd">—</span>');
     status=k.status||'upcoming'; hs=k.hs; as=k.as; minute=k.minute; city=k.city; stadium=k.stadium;
     hSc=k.homeScorers; aSc=k.awayScorers;
   }
@@ -840,6 +854,7 @@ function shiftDay(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); ret
 // flechas ‹ ›, fecha, botón "Hoy" y mensaje si el día no tiene partidos.
 function renderToday(){
   const el=document.getElementById('todayStrip'); if(!el) return;
+  _lockCache={};   // locks frescos para resolver "provisorio" igual que la Llave (se recomputa lazy)
   const ev=dayEvents();
   if(!ev.length){ el.innerHTML=''; return; }   // sin datos (offline) -> oculto la franja
   const today=todayMidnight(); if(!viewDay) viewDay=today;
@@ -868,6 +883,15 @@ function renderToday(){
     ? `<div class="today-list">${list.map(todayCard).join('')}</div>`
     : `<div class="today-empty">Sin partidos este día</div>`;
   el.innerHTML=head+body;
+  // distribución pareja según cantidad: columnas balanceadas para no dejar tarjetas huérfanas
+  // (6 -> 3+3, 5 -> 5, 4 -> 4...), capadas por cuántas entran a lo ancho (en mobile -> 1).
+  if(list.length){
+    const gap=11, minCard=214, vw=Math.min(window.innerWidth||1180, 1180)-36;
+    const maxC=Math.max(1, Math.floor((vw+gap)/(minCard+gap)));
+    const rows=Math.ceil(list.length/maxC), cols=Math.ceil(list.length/rows);
+    const lst=el.querySelector('.today-list');
+    if(lst) lst.style.gridTemplateColumns=`repeat(${cols}, minmax(0,1fr))`;
+  }
   // recordar qué tarjetas tienen los goles abiertos para que un refresco no los cierre
   el.querySelectorAll('details.tc-goals-d').forEach(d=>{
     d.addEventListener('toggle',()=>{ d.open?openGoals.add(d.dataset.k):openGoals.delete(d.dataset.k); });
@@ -879,6 +903,9 @@ function renderToday(){
     renderToday();
   }));
 }
+// recalcular la distribución de la franja al cambiar el tamaño de la ventana (debounced)
+let _todayResizeT;
+if(typeof window!=='undefined') window.addEventListener('resize',()=>{ clearTimeout(_todayResizeT); _todayResizeT=setTimeout(renderToday,150); });
 
 const openGroups=new Set();   // grupos con su lista de partidos desplegada (arranca vacío = todos cerrados)
 function renderGroups(){
@@ -1098,31 +1125,45 @@ function kslot(seed, body, tbd, opts){
   const seedHTML = seed ? `<span class="kseed">${seed}</span>` : '';
   return `<div class="${cls}"${attrs}>${seedHTML}<span class="kteam">${body}</span></div>`;
 }
-// Resuelve un slot del modelo a HTML usando la asignación de terceros.
-// El provisorio NO va como chip de texto: se marca con la clase prov-slot (punto).
-function resolveSlot(slot, assign){
+// FUENTE ÚNICA de resolución de un slot (consume standings + Anexo C; NO recalcula).
+// Devuelve datos que usan el bracket (Llave) y la franja "Hoy":
+//   - team   código de país ocupante (puede ser provisorio si prov=true)
+//   - prov   true si el ocupante NO está sellado (posición aún puede cambiar)
+//   - label  rótulo de ORIGEN traducido del slot ("Ganador Grupo E", "2° F", "3° A/B/C/F",
+//            "Ganador #74"), para mostrar cuando no hay equipo definitivo
+//   - seed/body  etiqueta y cuerpo que usa el bracket para los placeholders
+function koSlotInfo(slot, assign){
   if(slot.t==='w' || slot.t==='r'){
-    const g=slot.g, pos=slot.t==='w'?1:2;
-    const s=standings(g)[pos-1];
-    const seed=(slot.t==='w'?'1° ':'2° ')+g;
-    if(!s) return kslot(seed,'—',true);
-    return kslot(seed, teamCell(s.team), false, {prov:!posSealed(g, s.team, pos)});
+    const g=slot.g, pos=slot.t==='w'?1:2, s=standings(g)[pos-1], seed=(slot.t==='w'?'1° ':'2° ')+g;
+    const label=(slot.t==='w'?'Ganador Grupo ':'2° ')+g;
+    if(!s) return {seed, body:'—', tbd:true, placeholder:label, label};
+    return {seed, team:s.team, prov:!posSealed(g, s.team, pos), label};
   }
   if(slot.t==='3'){
+    const candLabel='3° '+(slot.cand||[]).join('/');                   // origen: grupos candidatos
     if(assign && assign.map){
-      const tg=assign.map[slot.lead];           // grupo que aporta ese 3° (Anexo C)
-      const s=standings(tg)[2];
-      // definitivo solo si: la combinación del Anexo C ya no cambia (assign no provisorio)
-      // Y el 3° de ese grupo tiene su posición sellada.
-      const prov = assign.provisional || !s || !posSealed(tg, s.team, 3);
-      return kslot('3° '+tg, s?teamCell(s.team):'—', false,
-        {prov, title: slot.cand?('Candidatos: '+slot.cand.join('/')):undefined});
+      const tg=assign.map[slot.lead], s=standings(tg)[2];             // 3° que aporta el grupo (Anexo C)
+      const title = slot.cand?('Candidatos: '+slot.cand.join('/')):undefined;
+      if(!s) return {seed:'3° '+tg, body:'—', tbd:true, title, placeholder:candLabel, label:candLabel};
+      return {seed:'3° '+tg, team:s.team, prov: assign.provisional || !posSealed(tg, s.team, 3), title, label:candLabel};
     }
-    return kslot('Mejor 3°', 'de '+(slot.cand||[]).join('/'), true); // fallback
+    return {seed:'Mejor 3°', body:'de '+(slot.cand||[]).join('/'), tbd:true, placeholder:candLabel, label:candLabel};
   }
-  if(slot.t==='mw') return kslot('', 'Ganador #'+slot.m, true);
-  if(slot.t==='ml') return kslot('', 'Perdedor #'+slot.m, true);
-  return kslot('','—',true);
+  if(slot.t==='mw') return {seed:'', body:'Ganador #'+slot.m, tbd:true, placeholder:'Ganador #'+slot.m, label:'Ganador #'+slot.m};
+  if(slot.t==='ml') return {seed:'', body:'Perdedor #'+slot.m, tbd:true, placeholder:'Perdedor #'+slot.m, label:'Perdedor #'+slot.m};
+  return {seed:'', body:'—', tbd:true, placeholder:'—', label:'—'};
+}
+// El provisorio NO va como chip de texto en el bracket: se marca con la clase prov-slot (punto).
+function resolveSlot(slot, assign){
+  const i=koSlotInfo(slot, assign);
+  if(i.team) return kslot(i.seed, teamCell(i.team), false, {prov:i.prov, title:i.title});
+  return kslot(i.seed, i.body, true, {title:i.title});
+}
+// Casillero de la franja "Hoy" — BINARIO: equipo solo si está DEFINITIVO (sellado, mismo
+// cálculo que el bracket); si no, el rótulo de origen traducido. Nunca un equipo provisorio.
+function slotInfoCell(info){
+  if(info.team && !info.prov) return teamCell(info.team);
+  return `<span class="tn tc-tbd">${info.label}</span>`;
 }
 // Slots (home/away) de una llave. r32=true usa grupos/terceros; si no, ganadores previos.
 function slotsFor(tie, r32, assign){
@@ -1550,7 +1591,7 @@ function matchesFromGames(games, id2code){
 
 // Metadata de sede/horario (+ estado/marcador/nombres para la franja "Hoy")
 // de los partidos de eliminatorias (73-104) -> mapa por id.
-function koMetaFromGames(games){
+function koMetaFromGames(games, id2code){
   const map={};
   for(const x of games){
     if(x.type==='group') continue;
@@ -1567,8 +1608,10 @@ function koMetaFromGames(games){
       stadium: v?v.stadium:null,
       status, hs, as,
       minute: status==='live' ? liveMinute(x.time_elapsed) : null,
-      homeName: x.home_team_name_en || x.home_team_label || null,
-      awayName: x.away_team_name_en || x.away_team_label || null,
+      // código de país SOLO si la API ya definió el equipo (partido jugado/equipos conocidos);
+      // si no, queda null y la franja lo resuelve por el bracket (standings + Anexo C).
+      home: (id2code && id2code[x.home_team_id]) || null,
+      away: (id2code && id2code[x.away_team_id]) || null,
       homeScorers: x.home_scorers, awayScorers: x.away_scorers
     };
   }
@@ -1602,7 +1645,7 @@ async function loadLive(){
       throw new Error('la API no devolvió partidos de grupo jugados ni en vivo');
 
     state.matches = matches;
-    state.koMeta = koMetaFromGames(games);   // sede/horario de las eliminatorias
+    state.koMeta = koMetaFromGames(games, id2code);   // sede/horario (+ código si la API lo define)
     renderAll();
 
     const liveN = matches.filter(m=>m.status==='live').length;
