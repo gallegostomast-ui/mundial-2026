@@ -20,6 +20,7 @@
   body{background:radial-gradient(120% 80% at 50% -10%, #133022 0%, transparent 55%), var(--bg);
     color:var(--ink);font-family:'Inter',system-ui,sans-serif;line-height:1.45;min-height:100vh;padding-bottom:80px}
   .wrap{max-width:1180px;margin:0 auto;padding:0 18px}
+  main.wrap{padding-top:16px}   /* aire entre la barra de pestañas (sticky) y el contenido */
 
   header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(12,27,20,.96),rgba(9,20,16,.96));
     position:sticky;top:0;z-index:50;backdrop-filter:blur(8px)}
@@ -59,29 +60,48 @@
   /* ---------- franja "Hoy" (tarjetas) ---------- */
   .today{margin:2px 0 16px}
   .today:empty{display:none}
-  .today-h{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .today-h{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  /* flechas de navegación de día (tap-friendly en mobile) */
+  .today-nav{appearance:none;cursor:pointer;flex:none;width:30px;height:30px;border-radius:8px;border:1px solid var(--line-strong);
+    background:var(--surface);color:var(--ink-dim);font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.12s}
+  .today-nav:hover:not(:disabled){color:var(--ink);border-color:var(--gold)}
+  .today-nav:disabled{opacity:.3;cursor:default}
+  .today-hd{display:flex;align-items:center;gap:8px;min-width:0}
+  .today-h-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .today-today{appearance:none;cursor:pointer;flex:none;font-family:'Archivo',sans-serif;font-weight:700;font-size:10px;
+    letter-spacing:.06em;text-transform:uppercase;color:#072a15;background:var(--qual);border:none;padding:5px 11px;border-radius:6px}
+  .today-today:hover{filter:brightness(1.08)}
   .today-tag{font-family:'Archivo',sans-serif;font-weight:800;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
     color:#072a15;background:var(--qual);padding:3px 9px;border-radius:5px}
   .today-tag.next{color:#3a2a00;background:var(--third)}
+  .today-tag.rel{color:var(--ink-dim);background:var(--surface2)}
   .today-date{font-weight:600;color:var(--ink);text-transform:capitalize;font-size:13.5px}
   .today-live{display:inline-flex;align-items:center;gap:5px;font-family:'Archivo',sans-serif;font-weight:700;font-size:10px;
     letter-spacing:.06em;text-transform:uppercase;color:#3a2a00;background:var(--third);padding:2px 8px;border-radius:5px}
   .today-live .lvdot{width:5px;height:5px;border-radius:50%;background:#3a2a00;animation:pulse 1.2s infinite}
-  .today-n{margin-left:auto;font-size:11.5px;color:var(--ink-faint)}
-  .today-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(252px,1fr));gap:11px;align-items:start}
+  .today-n{font-size:11.5px;color:var(--ink-faint)}
+  .today-empty{padding:24px 14px;text-align:center;color:var(--ink-faint);font-size:13px;border:1px dashed var(--line-strong);border-radius:11px}
+  /* auto-fit reparte parejo y llena el renglón; el mínimo deja ~5 en una fila en pantalla
+     ancha. Si no entran a ese ancho, envuelven a otra fila (nunca se comprimen por debajo). */
+  /* columnas 1fr -> mismo ancho; align-items:start -> cada tarjeta crece solo por su propio
+     contenido (al abrir "Ver goles" solo se expande esa), alineadas arriba. La altura base
+     pareja la dan las secciones reservadas (sede 1 línea, nombre 2 líneas, footer de goles). */
+  .today-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(214px,1fr));gap:11px;align-items:start}
   .tc{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--line);border-radius:11px;
     padding:10px 12px 11px;display:flex;flex-direction:column;gap:8px}
-  .tc-live{order:-1;border-color:var(--third);background:linear-gradient(180deg,rgba(243,194,75,.12),var(--bg2));
+  .tc-live{border-color:var(--third);background:linear-gradient(180deg,rgba(243,194,75,.12),var(--bg2));
     box-shadow:0 0 0 1px rgba(243,194,75,.3)}
-  .tc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:18px}
+  .tc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:18px;flex-wrap:nowrap}
   .tc-fin{font-family:'Archivo',sans-serif;font-weight:700;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
     color:var(--ink-faint);background:var(--surface2);padding:2px 7px;border-radius:4px}
   .tc-sched{font-family:'Archivo',sans-serif;font-weight:700;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
     color:var(--ink-dim);background:var(--surface2);padding:2px 7px;border-radius:4px}
   .tc-top .mchip.live{font-size:9.5px;padding:2px 8px}
-  .tc-venue{font-size:9.5px;color:var(--ink-faint);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  /* sede en 1 línea (alto fijo): si no entra, elipsa — es la sede, no un nombre de equipo */
+  .tc-venue{font-size:9.5px;color:var(--ink-faint);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
   .tc-main{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
-  .tc-team{display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;min-width:0}
+  /* reserva 2 líneas para el nombre: 1 línea y 2 líneas ocupan lo mismo -> marcadores alineados */
+  .tc-team{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;gap:3px;min-width:0;min-height:54px}
   .tc-team .flag{font-size:23px;margin:0}
   .tc-team .tn{font-weight:600;font-size:12px;line-height:1.15;word-break:break-word}
   .tc-score{font-family:'Archivo',sans-serif;font-weight:800;font-size:27px;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:center}
@@ -89,7 +109,18 @@
   .tc-score.live{color:var(--third)}
   .tc-kick{font-family:'Archivo',sans-serif;font-weight:800;font-size:19px;line-height:1;text-align:center;color:var(--ink)}
   .tc-kick small{display:block;font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:3px}
-  .tc-goals{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;border-top:1px dashed var(--line);padding-top:7px}
+  /* goles en desplegable: summary discreto "Ver goles", arranca cerrado */
+  .tc-goals-d{border-top:1px dashed var(--line);padding-top:5px;margin-top:1px;min-height:13px}
+  /* placeholder cuando no hay goles: reserva la misma altura, sin borde -> altura base pareja */
+  .tc-goals-empty{border-top:0;padding-top:0;min-height:19px}
+  .tc-goals-d > summary.tg-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;
+    font-family:'Archivo',sans-serif;font-weight:700;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+  .tc-goals-d > summary.tg-sum::-webkit-details-marker{display:none}
+  .tc-goals-d > summary.tg-sum:hover{color:var(--ink-dim)}
+  .tg-sum .chev{width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s}
+  .tc-goals-d[open] > summary.tg-sum{margin-bottom:6px}
+  .tc-goals-d[open] > summary.tg-sum .chev{transform:rotate(90deg)}
+  .tc-goals{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
   .tc-gcol{display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:var(--ink-dim);min-width:0}
   .tc-gcol.gh{text-align:right;align-items:flex-end}
   .tc-gcol.ga{text-align:left;align-items:flex-start}
@@ -104,7 +135,9 @@
   .note h3{font-family:'Archivo',sans-serif;font-weight:800;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
   .note p{font-size:12.5px;color:var(--ink-dim);line-height:1.55} .note b{color:var(--ink)}
 
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;padding-top:8px}
+  /* align-items:start -> las columnas de grupo no igualan altura entre sí; al desplegar
+     "Ver partidos" de un grupo solo crece ese, los demás quedan compactos (alineados arriba) */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;padding-top:8px;align-items:start}
   .group{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--line);border-radius:12px;overflow:hidden}
   .group-h{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);
     background:repeating-linear-gradient(90deg,transparent,transparent 22px,var(--pitch) 22px,var(--pitch) 44px)}
@@ -135,8 +168,18 @@
   /* partidos (solo lectura, vienen de la API) */
   .matches{padding:10px 14px 13px;border-top:1px solid var(--line)}
   .matches .mh{font-family:'Archivo',sans-serif;font-weight:700;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  /* desplegable de partidos (Grupos): summary como header clickeable, arranca cerrado */
+  details.matches > summary.msum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;
+    font-family:'Archivo',sans-serif;font-weight:700;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);
+    user-select:none;padding:2px 0}
+  details.matches > summary.msum::-webkit-details-marker{display:none}
+  details.matches > summary.msum:hover{color:var(--ink)}
+  details.matches[open] > summary.msum{margin-bottom:6px}
+  .msum .chev{width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s}
+  details.matches[open] > summary.msum .chev{transform:rotate(90deg)}
   .m{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--line)}
   .matches .mh + .m{border-top:none}
+  details.matches > summary.msum + .m{border-top:none}
   .m.m-live{background:linear-gradient(90deg,rgba(243,194,75,.09),transparent);border-radius:6px}
   .m .ht{text-align:right;font-weight:600} .m .at{text-align:left;font-weight:600}
   .m .ht .flag,.m .at .flag{font-size:14px}
@@ -306,6 +349,12 @@
 
   footer{text-align:center;font-size:11.5px;color:var(--ink-faint);padding:34px 18px 0;line-height:1.7}
   .hidden{display:none}
+  /* mobile: pestañas en una sola fila deslizable (tipo barra de app), sin envolver */
+  @media(max-width:760px){
+    nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    nav::-webkit-scrollbar{display:none}
+    .tab{flex:none;white-space:nowrap;padding:11px 13px 13px}
+  }
   @media(max-width:560px){.cols{grid-template-columns:1fr}.meta{text-align:left}.head-top{align-items:flex-start}}
 </style>
 </head>
@@ -720,12 +769,13 @@ function matchRow(m){
 }
 
 /* ---------- franja "Hoy" (resumen de la jornada, zona del navegador) ---------- */
+const openGoals=new Set();   // partidos con su desplegable de goles abierto (persiste entre refrescos)
 function localDayKey(ms){ const d=new Date(ms); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
 // Eventos del día (grupos + eliminatorias) con instante absoluto.
 function dayEvents(){
   const ev=[];
   for(const m of state.matches){ if(m.kickoffUTC) ev.push({ms:m.kickoffUTC, type:'group', m}); }
-  for(const id in (state.koMeta||{})){ const k=state.koMeta[id]; if(k.kickoffUTC) ev.push({ms:k.kickoffUTC, type:'ko', k}); }
+  for(const id in (state.koMeta||{})){ const k=state.koMeta[id]; if(k.kickoffUTC) ev.push({ms:k.kickoffUTC, type:'ko', k, id}); }
   return ev;
 }
 function evStatus(e){ return e.type==='group' ? matchStatus(e.m) : (e.k.status||'upcoming'); }
@@ -763,9 +813,19 @@ function todayCard(e){
     center=`<div class="tc-kick">${viewerTime(e.ms)||'—'}<small>tu hora</small></div>`;
   }
   const venue = city?`<span class="tc-venue">📍 ${city}${stadium?` · ${stadium}`:''}</span>`:'';
+  // goles en desplegable (solo si hay alguno cargado); estado abierto/cerrado por partido.
+  // Si no hay goles, va un placeholder de la MISMA altura para que la altura base no cambie.
   const gh=goalsHTML(hSc), ga=goalsHTML(aSc);
-  const goals=(gh||ga)
-    ? `<div class="tc-goals"><div class="tc-gcol gh">${gh}</div><div class="tc-gcol ga">${ga}</div></div>` : '';
+  let goals;
+  if(gh||ga){
+    const key = e.type==='group' ? `g:${e.m.group}:${e.m.home}:${e.m.away}` : `k:${e.id}`;
+    goals = `<details class="tc-goals-d" data-k="${key}"${openGoals.has(key)?' open':''}>`
+      + `<summary class="tg-sum"><span class="chev"></span>Ver goles</summary>`
+      + `<div class="tc-goals"><div class="tc-gcol gh">${gh}</div><div class="tc-gcol ga">${ga}</div></div>`
+      + `</details>`;
+  } else {
+    goals = `<div class="tc-goals-d tc-goals-empty" aria-hidden="true"></div>`;
+  }
   return `<div class="tc tc-${status}">
     <div class="tc-top">${chip}${venue}</div>
     <div class="tc-main">
@@ -773,31 +833,54 @@ function todayCard(e){
     </div>${goals}
   </div>`;
 }
+let viewDay=null;   // Date (medianoche local) del día que se está mirando; null = hoy
+function todayMidnight(){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); }
+function shiftDay(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
+// Módulo de jornada navegable: muestra los partidos del día visible (arranca en hoy), con
+// flechas ‹ ›, fecha, botón "Hoy" y mensaje si el día no tiene partidos.
 function renderToday(){
   const el=document.getElementById('todayStrip'); if(!el) return;
   const ev=dayEvents();
-  if(!ev.length){ el.innerHTML=''; return; }
-  const now=new Date(), todayKey=now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
-  let list=ev.filter(e=>localDayKey(e.ms)===todayKey), isToday=true;
-  if(!list.length){
-    const fut=ev.filter(e=>localDayKey(e.ms)>todayKey).sort((a,b)=>a.ms-b.ms);
-    if(!fut.length){ el.innerHTML=''; return; }
-    const k=localDayKey(fut[0].ms);
-    list=ev.filter(e=>localDayKey(e.ms)===k); isToday=false;
-  }
-  // orden: en vivo -> por jugar (por horario) -> terminados
-  const rank={live:0, upcoming:1, played:2};
-  list.sort((a,b)=> (rank[evStatus(a)]-rank[evStatus(b)]) || (a.ms-b.ms));
+  if(!ev.length){ el.innerHTML=''; return; }   // sin datos (offline) -> oculto la franja
+  const today=todayMidnight(); if(!viewDay) viewDay=today;
+  const vKey=localDayKey(viewDay.getTime()), todayKey=localDayKey(today.getTime());
+  // partidos del día visible, en orden estrictamente cronológico (la hora define la posición)
+  const list=ev.filter(e=>localDayKey(e.ms)===vKey).sort((a,b)=> a.ms-b.ms);
+  // límites: no dejar navegar más allá del primer/último día con partidos
+  const keys=ev.map(e=>localDayKey(e.ms)), minK=Math.min(...keys), maxK=Math.max(...keys);
+  const prevOff=vKey<=minK, nextOff=vKey>=maxK;
+  // etiqueta relativa
+  const rel = vKey===todayKey?'Hoy'
+    : vKey===localDayKey(shiftDay(today,-1).getTime())?'Ayer'
+    : vKey===localDayKey(shiftDay(today,1).getTime())?'Mañana':'';
+  const fecha=viewDay.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
   const liveN=list.filter(e=>evStatus(e)==='live').length;
-  const fecha=new Date(list[0].ms).toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
-  el.innerHTML=
-    `<div class="today-h"><span class="today-tag ${isToday?'':'next'}">${isToday?'Hoy':'Próxima jornada'}</span>`
-    + `<span class="today-date">${fecha}</span>`
+  const head=`<div class="today-h">`
+    + `<button class="today-nav" data-nav="-1"${prevOff?' disabled':''} aria-label="Día anterior">‹</button>`
+    + `<div class="today-hd">${rel?`<span class="today-tag ${rel==='Hoy'?'':'rel'}">${rel}</span>`:''}<span class="today-date">${fecha}</span></div>`
+    + `<button class="today-nav" data-nav="1"${nextOff?' disabled':''} aria-label="Día siguiente">›</button>`
+    + `<div class="today-h-r">`
     + (liveN?`<span class="today-live"><span class="lvdot"></span>${liveN} en vivo</span>`:'')
-    + `<span class="today-n">${list.length} partido${list.length!==1?'s':''}</span></div>`
-    + `<div class="today-list">${list.map(todayCard).join('')}</div>`;
+    + (rel!=='Hoy'?`<button class="today-today" data-nav="today">Ir a hoy</button>`:'')
+    + (list.length?`<span class="today-n">${list.length} partido${list.length!==1?'s':''}</span>`:'')
+    + `</div></div>`;
+  const body=list.length
+    ? `<div class="today-list">${list.map(todayCard).join('')}</div>`
+    : `<div class="today-empty">Sin partidos este día</div>`;
+  el.innerHTML=head+body;
+  // recordar qué tarjetas tienen los goles abiertos para que un refresco no los cierre
+  el.querySelectorAll('details.tc-goals-d').forEach(d=>{
+    d.addEventListener('toggle',()=>{ d.open?openGoals.add(d.dataset.k):openGoals.delete(d.dataset.k); });
+  });
+  // navegación de días
+  el.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>{
+    const v=b.dataset.nav;
+    viewDay = v==='today' ? todayMidnight() : shiftDay(viewDay, +v);
+    renderToday();
+  }));
 }
 
+const openGroups=new Set();   // grupos con su lista de partidos desplegada (arranca vacío = todos cerrados)
 function renderGroups(){
   const grid=document.getElementById('groupsGrid'); grid.innerHTML='';
   for(const g of GROUPS){
@@ -835,9 +918,16 @@ function renderGroups(){
           <thead><tr><th class="team">Selección</th><th>PJ</th><th>DG</th><th>GF</th><th>Pts</th></tr></thead>
           <tbody>${tb}</tbody>
         </table>
-        <div class="matches"><div class="mh">Partidos del grupo</div>${mh}</div>
+        <details class="matches" data-g="${g}"${openGroups.has(g)?' open':''}>
+          <summary class="msum"><span class="chev"></span><span>Ver partidos</span></summary>
+          ${mh}
+        </details>
       </div>`);
   }
+  // recordar qué grupos quedaron abiertos para que un refresco en vivo no los cierre
+  grid.querySelectorAll('details.matches').forEach(d=>{
+    d.addEventListener('toggle',()=>{ d.open?openGroups.add(d.dataset.g):openGroups.delete(d.dataset.g); });
+  });
 }
 
 function renderThirds(){
