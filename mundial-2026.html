@@ -45,7 +45,7 @@
   .tab:hover{color:var(--ink-dim)} .tab.on{color:var(--ink);border-bottom-color:var(--gold)}
 
   .toolbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 0 6px}
-  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-dim)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-dim);margin:2px 0 12px}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
   .i-q{background:var(--qual)} .i-t{background:var(--third)} .i-o{background:var(--out)}
   .spacer{flex:1}
@@ -246,18 +246,32 @@
   .thirdplace{margin-top:8px;width:100%}
   .tp-h{font-family:'Archivo',sans-serif;font-weight:800;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);text-align:center;margin-bottom:6px}
 
-  /* ---------- bracket mobile (rondas en una columna) ---------- */
+  /* ---------- bracket mobile (por mitad, con pares conectados) ---------- */
   .bracket-rounds{display:none;margin-top:10px}
-  .rnd-sec{margin-bottom:18px}
-  .rnd-sec > h3{font-family:'Archivo',sans-serif;font-weight:800;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
-    color:var(--ink-dim);margin-bottom:8px;display:flex;align-items:center;gap:10px}
-  .rnd-sec > h3::after{content:"";flex:1;height:1px;background:var(--line)}
-  .rnd-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-  .rnd-list .bmatch{width:auto}
-  /* en mobile las tarjetas tienen más aire: nombre y sede completos, sin recortes */
-  .rnd-list .kslot{font-size:13.5px}
-  .rnd-list .kseed{width:38px}
-  .rnd-list .bvenue{white-space:normal;overflow:visible}
+  .mk-tabs{display:flex;gap:6px;margin-bottom:6px}
+  .mk-tab{flex:1;appearance:none;cursor:pointer;font-family:'Archivo',sans-serif;font-weight:700;font-size:11px;
+    letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);background:var(--surface);
+    border:1px solid var(--line);padding:10px 6px;border-radius:8px;transition:.12s}
+  .mk-tab.on{color:var(--ink);background:var(--surface2);border-color:var(--gold)}
+  .mk-pane{display:none} .mk-pane.on{display:block}
+  .mk-round > h3{font-family:'Archivo',sans-serif;font-weight:800;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-dim);margin:16px 0 9px;display:flex;align-items:center;gap:10px}
+  .mk-round > h3::after{content:"";flex:1;height:1px;background:var(--line)}
+  /* par = los dos partidos que se cruzan; barra izquierda los agrupa */
+  .mk-pair{position:relative;border:1px solid var(--line);border-left:3px solid var(--qual);border-radius:10px;
+    padding:9px;margin-bottom:11px;display:flex;flex-direction:column;gap:8px}
+  .mk-pair .bmatch{width:auto}
+  .mk-pair.mk-solo{border-left-color:var(--gold)}
+  .mk-finalcard .bmatch{border-color:var(--gold);box-shadow:0 0 0 1px rgba(243,194,75,.25)}
+  .mk-join{display:flex;align-items:center;gap:8px;font-family:'Archivo',sans-serif;font-weight:700;font-size:10px;
+    letter-spacing:.03em;text-transform:uppercase;color:var(--ink-dim);margin-top:1px}
+  .mk-join b{color:var(--gold)}
+  .mk-join .mk-jline{flex:none;width:13px;height:13px;margin-left:5px;border-left:2px solid var(--qual);
+    border-bottom:2px solid var(--qual);border-bottom-left-radius:5px}
+  /* en mobile las tarjetas se leen completas: nombre y sede sin recortes */
+  .mk-pane .kslot{font-size:13.5px}
+  .mk-pane .kseed{width:40px}
+  .mk-pane .bvenue{white-space:normal;overflow:visible}
 
   @media(max-width:860px){
     .bracket-poster{display:none}
@@ -294,19 +308,13 @@
 </header>
 
 <main class="wrap">
-  <div class="toolbar">
+  <section id="grupos">
+    <div id="todayStrip" class="today"></div>
     <div class="legend">
       <span><i class="i-q"></i>1° y 2°: clasifican directo</span>
       <span><i class="i-t"></i>3°: pelea por 1 de 8 lugares</span>
       <span><i class="i-o"></i>4°: eliminado</span>
     </div>
-    <div class="spacer"></div>
-    <button class="btn ghost" id="reset">Volver a la semilla</button>
-    <button class="btn ghost" id="clear">Vaciar todo</button>
-  </div>
-
-  <section id="grupos">
-    <div id="todayStrip" class="today"></div>
     <div class="grid" id="groupsGrid"></div>
   </section>
 
@@ -873,6 +881,64 @@ function renderScorers(){
 
 const PROV='<span class="provtag">prov.</span>';
 
+/* ---------- ¿posición sellada? (cruces definitivos, calculados) ---------- */
+let _lockCache=null;  // {grupo:{equipo: posición sellada 1..4 | null}} — se reinicia cada render
+// Para cada equipo del grupo: su posición final si es matemáticamente inamovible, o null.
+// Enumera TODOS los escenarios W/E/D de los partidos que faltan (los en vivo incluidos: su
+// resultado todavía puede cambiar). En cada escenario aplica el 1er criterio de desempate
+// 2026 — el MANO A MANO en puntos — que es independiente de los goles, así que sí se puede
+// sellar. Si tras el mano a mano dos equipos siguen empatados, la posición depende de un
+// desempate por gol (que los partidos que faltan pueden alterar) y queda PROVISORIA.
+function groupLocks(g){
+  if(!_lockCache) _lockCache={};
+  if(_lockCache[g]) return _lockCache[g];
+  const teams=TEAMS[g], all=groupMatches(g), res={};
+  const rem=all.filter(m=>matchStatus(m)!=='played');
+  if(rem.length===0){                         // grupo cerrado: la posición ya es la final
+    standings(g).forEach((s,i)=>{ res[s.team]=i+1; });
+    _lockCache[g]=res; return res;
+  }
+  // resultados ya jugados (fijos) como {h,a,r} con r = 'h'|'d'|'a'
+  const playedRes=all.filter(m=>matchStatus(m)==='played')
+    .map(m=>({h:m.home, a:m.away, r:m.hs>m.as?'h':m.hs<m.as?'a':'d'}));
+  const r=rem.length, N=Math.pow(3,r);
+  const bw={}; teams.forEach(t=>{ bw[t]={best:Infinity, worst:-Infinity}; });
+  for(let mask=0; mask<N; mask++){
+    const results=playedRes.slice(), pts={}; teams.forEach(t=>pts[t]=0);
+    for(const pr of playedRes){ if(pr.r==='h')pts[pr.h]+=3; else if(pr.r==='a')pts[pr.a]+=3; else {pts[pr.h]++;pts[pr.a]++;} }
+    let x=mask;
+    for(let i=0;i<r;i++){
+      const o=x%3; x=(x-o)/3; const m=rem[i], rr=o===0?'h':o===1?'d':'a';
+      results.push({h:m.home, a:m.away, r:rr});
+      if(rr==='h')pts[m.home]+=3; else if(rr==='a')pts[m.away]+=3; else {pts[m.home]++;pts[m.away]++;}
+    }
+    for(const t of teams){
+      const pt=pts[t];
+      let above=teams.filter(u=>pts[u]>pt).length;   // más puntos = arriba seguro
+      const block=teams.filter(u=>pts[u]===pt);       // empatados a puntos (incluye t)
+      let couldAbove=0;
+      if(block.length>1){                              // 1er desempate: mano a mano (puntos)
+        const h2h={}; block.forEach(u=>h2h[u]=0);
+        for(const m of results){
+          if(block.indexOf(m.h)>=0 && block.indexOf(m.a)>=0){
+            if(m.r==='h')h2h[m.h]+=3; else if(m.r==='a')h2h[m.a]+=3; else {h2h[m.h]++;h2h[m.a]++;}
+          }
+        }
+        for(const u of block){ if(u===t) continue;
+          if(h2h[u]>h2h[t]) above++;                   // gana el mano a mano -> arriba seguro
+          else if(h2h[u]===h2h[t]) couldAbove++;       // sigue empatado -> desempate por gol (puede cambiar)
+        }
+      }
+      if(above+1<bw[t].best) bw[t].best=above+1;
+      if(above+couldAbove+1>bw[t].worst) bw[t].worst=above+couldAbove+1;
+    }
+  }
+  teams.forEach(t=>{ res[t] = (bw[t].best===bw[t].worst) ? bw[t].best : null; });
+  _lockCache[g]=res; return res;
+}
+// ¿el equipo `team` tiene sellada la posición `pos` en el grupo `g`?
+function posSealed(g, team, pos){ return groupLocks(g)[team]===pos; }
+
 // Asignación de terceros vía Anexo C, resuelta SIEMPRE con los 8 mejores terceros de hoy.
 // `provisional` = todavía no cerraron los 12 grupos (la combinación puede cambiar).
 function thirdsAssignment(){
@@ -890,7 +956,8 @@ function kslot(seed, body, tbd, opts){
   opts=opts||{};
   const cls='kslot'+(tbd?' tbd':'')+(opts.prov?' prov-slot':'');
   const attrs=opts.title?` title="${opts.title}"`:'';
-  return `<div class="${cls}"${attrs}><span class="kseed">${seed}</span><span class="kteam">${body}</span></div>`;
+  const seedHTML = seed ? `<span class="kseed">${seed}</span>` : '';
+  return `<div class="${cls}"${attrs}>${seedHTML}<span class="kteam">${body}</span></div>`;
 }
 // Resuelve un slot del modelo a HTML usando la asignación de terceros.
 // El provisorio NO va como chip de texto: se marca con la clase prov-slot (punto).
@@ -900,19 +967,22 @@ function resolveSlot(slot, assign){
     const s=standings(g)[pos-1];
     const seed=(slot.t==='w'?'1° ':'2° ')+g;
     if(!s) return kslot(seed,'—',true);
-    return kslot(seed, teamCell(s.team), false, {prov:!groupClosed(g)});
+    return kslot(seed, teamCell(s.team), false, {prov:!posSealed(g, s.team, pos)});
   }
   if(slot.t==='3'){
     if(assign && assign.map){
       const tg=assign.map[slot.lead];           // grupo que aporta ese 3° (Anexo C)
       const s=standings(tg)[2];
+      // definitivo solo si: la combinación del Anexo C ya no cambia (assign no provisorio)
+      // Y el 3° de ese grupo tiene su posición sellada.
+      const prov = assign.provisional || !s || !posSealed(tg, s.team, 3);
       return kslot('3° '+tg, s?teamCell(s.team):'—', false,
-        {prov:assign.provisional, title: slot.cand?('Candidatos: '+slot.cand.join('/')):undefined});
+        {prov, title: slot.cand?('Candidatos: '+slot.cand.join('/')):undefined});
     }
     return kslot('Mejor 3°', 'de '+(slot.cand||[]).join('/'), true); // fallback
   }
-  if(slot.t==='mw') return kslot('Gana', 'Ganador '+slot.m, true);
-  if(slot.t==='ml') return kslot('Pierde', 'Perdedor '+slot.m, true);
+  if(slot.t==='mw') return kslot('', 'Ganador #'+slot.m, true);
+  if(slot.t==='ml') return kslot('', 'Perdedor #'+slot.m, true);
   return kslot('','—',true);
 }
 // Slots (home/away) de una llave. r32=true usa grupos/terceros; si no, ganadores previos.
@@ -936,12 +1006,80 @@ function koColumn(roundClass, label, ties, r32, assign){
   const cells = ties.map(t=>`<div class="bcell">${koCard(t, ...slotsFor(t,r32,assign))}</div>`).join('');
   return `<div class="round ${roundClass}"><div class="rlabel">${label}</div><div class="rcol">${cells}</div></div>`;
 }
-// Sección de ronda (mobile): título + grilla de tarjetas.
-function koSection(label, cardsHTML){
-  return `<div class="rnd-sec"><h3>${label}</h3><div class="rnd-list">${cardsHTML}</div></div>`;
+// ---- VISTA MOBILE: por mitad del cuadro, con pares conectados a su "hijo" ----
+const KO_TIES = [...R32_TIES, ...R16_TIES, ...QF_TIES, ...SF_TIES, FINAL_TIE, THIRD_TIE];
+const TIE_BY_ID = {}; KO_TIES.forEach(t=>{ TIE_BY_ID[t.id]=t; });
+function koRoundName(id){
+  if(id>=73 && id<=88)  return '16avos';
+  if(id>=89 && id<=96)  return '8vos';
+  if(id>=97 && id<=100) return '4tos';
+  if(id===101||id===102) return 'Semi';
+  if(id===104) return 'Final';
+  if(id===103) return '3er puesto';
+  return '';
+}
+function koCardById(id, A){
+  const tie=TIE_BY_ID[id];
+  if(id===103) return koCard(tie, resolveSlot({t:'ml',m:tie.a},A), resolveSlot({t:'ml',m:tie.b},A));
+  const r32 = id>=73 && id<=88;
+  return koCard(tie, ...slotsFor(tie, r32, A));
+}
+// Cada lado del cuadro: rondas de arriba→abajo; cada par [a,b,hijo] = dos llaves que
+// se cruzan en el partido `hijo` de la ronda siguiente.
+const KO_SIDES = {
+  l: { label:'Lado izquierdo', rounds:[
+        {name:'Dieciseisavos', pairs:[[74,77,89],[73,75,90],[83,84,93],[81,82,94]]},
+        {name:'Octavos',       pairs:[[89,90,97],[93,94,98]]},
+        {name:'Cuartos',       pairs:[[97,98,101]]},
+        {name:'Semifinal',     solo:[101]} ]},
+  r: { label:'Lado derecho', rounds:[
+        {name:'Dieciseisavos', pairs:[[76,78,91],[79,80,92],[86,88,95],[85,87,96]]},
+        {name:'Octavos',       pairs:[[91,92,99],[95,96,100]]},
+        {name:'Cuartos',       pairs:[[99,100,102]]},
+        {name:'Semifinal',     solo:[102]} ]}
+};
+let koSide = 'l';   // mitad seleccionada en mobile (persiste entre refrescos)
+
+function mkPair(pair, A){
+  const [a,b,child]=pair;
+  return `<div class="mk-pair">${koCardById(a,A)}${koCardById(b,A)}`
+    + `<div class="mk-join"><span class="mk-jline"></span>se cruzan en <b>${koRoundName(child)} #${child}</b></div></div>`;
+}
+function mkSideHTML(key, A){
+  return KO_SIDES[key].rounds.map(rd=>{
+    const body = rd.solo
+      ? rd.solo.map(id=>`<div class="mk-pair mk-solo">${koCardById(id,A)}</div>`).join('')
+      : rd.pairs.map(p=>mkPair(p,A)).join('');
+    return `<div class="mk-round"><h3>${rd.name}</h3>${body}</div>`;
+  }).join('');
+}
+function mkFinalHTML(A){
+  return `<div class="mk-round"><h3>Semifinales · las dos mitades</h3>`
+    + `<div class="mk-pair">${koCardById(101,A)}${koCardById(102,A)}`
+    + `<div class="mk-join"><span class="mk-jline"></span>se cruzan en la <b>Final #104</b></div></div></div>`
+    + `<div class="mk-round"><h3>Final</h3><div class="mk-pair mk-solo mk-finalcard">${koCardById(104,A)}</div></div>`
+    + `<div class="mk-round"><h3>Tercer puesto</h3><div class="mk-pair mk-solo">${koCardById(103,A)}</div></div>`;
+}
+function renderKOMobile(A){
+  const el=document.getElementById('bracketRounds'); if(!el) return;
+  const tab=(k,label)=>`<button class="mk-tab ${koSide===k?'on':''}" data-side="${k}">${label}</button>`;
+  const pane=(k,html)=>`<div class="mk-pane ${koSide===k?'on':''}" data-pane="${k}">${html}</div>`;
+  el.innerHTML =
+    `<div class="mk-tabs">${tab('l','Lado izquierdo')}${tab('r','Lado derecho')}${tab('f','Final')}</div>`
+    + pane('l', mkSideHTML('l',A)) + pane('r', mkSideHTML('r',A)) + pane('f', mkFinalHTML(A));
+  if(!el._koBound){          // un solo listener; sobrevive a los re-render (innerHTML)
+    el._koBound=true;
+    el.addEventListener('click', ev=>{
+      const b=ev.target.closest('.mk-tab'); if(!b) return;
+      koSide=b.dataset.side;
+      el.querySelectorAll('.mk-tab').forEach(x=>x.classList.toggle('on', x.dataset.side===koSide));
+      el.querySelectorAll('.mk-pane').forEach(x=>x.classList.toggle('on', x.dataset.pane===koSide));
+    });
+  }
 }
 
 function renderKO(){
+  _lockCache={};                       // recalcular posiciones selladas con el estado actual
   const A=thirdsAssignment(), cc=closedCount();
   document.getElementById('koStatus').innerHTML = (A && !A.provisional)
     ? `<b>Cruces definitivos.</b> Los 12 grupos cerraron; terceros asignados por Anexo C. <a href="#notas">Detalle ↓</a>`
@@ -969,15 +1107,8 @@ function renderKO(){
   document.getElementById('bracketPoster').innerHTML =
     `<div class="half half-l">${leftHTML}</div>${centerHTML}<div class="half half-r">${rightHTML}</div>`;
 
-  // ---- MOBILE: rondas en una sola columna ----
-  const sec = (label, ties, r32) => koSection(label, ties.map(t=>koCard(t, ...slotsFor(t,r32,A))).join(''));
-  document.getElementById('bracketRounds').innerHTML =
-    sec('Dieciseisavos', R32_TIES, true) +
-    sec('Octavos', R16_TIES, false) +
-    sec('Cuartos', QF_TIES, false) +
-    sec('Semifinales', SF_TIES, false) +
-    koSection('Final', finalCard) +
-    koSection('Tercer puesto', thirdCard);
+  // ---- MOBILE: por mitad del cuadro, con los pares conectados a su partido hijo ----
+  renderKOMobile(A);
 }
 
 function renderMeta(){
@@ -995,8 +1126,6 @@ document.querySelectorAll('.tab').forEach(tab=>{
       document.getElementById(v).classList.toggle('hidden',v!==tab.dataset.view));
   });
 });
-document.getElementById('reset').addEventListener('click',()=>{seed();renderAll();});
-document.getElementById('clear').addEventListener('click',()=>{clearAll();renderAll();});
 
 /* ===========================================================
    CONEXIÓN EN VIVO  — reemplaza la siembra por datos de la API.
