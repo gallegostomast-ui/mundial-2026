@@ -40,7 +40,7 @@
   .search-input{appearance:none;background:none;border:none;outline:none;color:var(--ink);font:inherit;font-size:13px;width:160px}
   .search-input::placeholder{color:var(--ink-faint)}
   .search-x{appearance:none;background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:13px;line-height:1;padding:0;display:none}
-  .search.has-text .search-x{display:block}
+  .search-fields.has-text .search-x{display:block}
   .search-x:hover{color:var(--ink)}
   .search-results{position:absolute;top:calc(100% + 8px);right:0;width:330px;max-width:86vw;max-height:72vh;overflow-y:auto;
     background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.45);
@@ -424,18 +424,16 @@
     nav::-webkit-scrollbar{display:none}
     .tab{flex:none;white-space:nowrap;padding:11px 13px 13px}
   }
-  /* mobile: en el header SOLO la lupa; al tocarla, el campo se mueve a su PROPIA fila
-     (.search-row, entre "datos en vivo" y las pestañas), nunca encima del título. La X cierra
-     y la fila desaparece. Los resultados van debajo del campo, en esa misma fila. */
+  /* mobile: SIN lupa; la barra de búsqueda queda SIEMPRE visible en su propia fila
+     (.search-row, entre "datos en vivo" y las pestañas). La X solo limpia lo escrito (la barra
+     queda). Los resultados van debajo, en esa misma fila. Input 16px -> sin auto-zoom en iOS. */
   @media(max-width:600px){
-    .search{padding:0;background:none;border:none;gap:0}
-    .search-btn{width:36px;height:36px;justify-content:center;background:var(--surface2);border:1px solid var(--line-strong);border-radius:9px;color:var(--ink-dim)}
-    .search .search-fields{display:none}                         /* oculto mientras está en el header */
-    .search-row.open{display:block;margin:10px 0 2px}
+    .search{display:none}                                        /* sin lupa/caja en el header */
+    .search-row{display:block;margin:10px 0 2px}                 /* barra siempre visible */
     .search-row .search-fields{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-    .search-row .search-input{display:block;flex:1;min-width:0;width:auto;font-size:14px;
+    .search-row .search-input{display:block;flex:1;min-width:0;width:auto;font-size:16px;
       background:var(--surface2);border:1px solid var(--line-strong);border-radius:9px;padding:10px 12px}
-    .search-row .search-x{display:flex;align-items:center;justify-content:center;flex:none;width:38px;height:38px;
+    .search-fields.has-text .search-x{display:flex;align-items:center;justify-content:center;flex:none;width:38px;height:38px;
       background:var(--surface2);border:1px solid var(--line-strong);border-radius:9px;color:var(--ink-dim);font-size:14px}
     .search-row .search-results{position:static;width:100%;max-width:none;margin-top:2px;max-height:60vh}
   }
@@ -1805,7 +1803,7 @@ async function tick(){ await loadLive(); scheduleRefresh(); }
   }
   function render(){
     if(selected){ out.innerHTML=detailHTML(selected); out.classList.add('show'); return; }
-    const q=input.value; box.classList.toggle('has-text', q.length>0);
+    const q=input.value; fields.classList.toggle('has-text', q.length>0);
     if(!norm(q.trim())){ out.classList.remove('show'); out.innerHTML=''; return; }
     const r=matchTeams(q);
     if(!r.length) out.innerHTML='<div class="sr-empty">Sin resultados</div>';
@@ -1813,25 +1811,23 @@ async function tick(){ await loadLive(); scheduleRefresh(); }
     else out.innerHTML=r.map(c=>`<button class="sr-item" type="button" data-code="${c}">${FLAG[c]||'⚽'} <span>${NAME[c]||c}</span><span class="sr-code">${c}</span></button>`).join('');
     out.classList.add('show');
   }
-  // en mobile el campo se MUEVE a su fila propia (row); en desktop queda en el header (box)
-  function openSearch(){
-    if(mq.matches){ row.appendChild(fields); row.classList.add('open'); }
-    input.focus(); if(input.value) render();
+  // ubica el campo según la pantalla: mobile -> su propia fila (siempre); desktop -> caja del header
+  function placeFields(){
+    const dest = mq.matches ? row : box;
+    if(fields.parentNode!==dest) dest.appendChild(fields);
   }
-  function closeSearch(){
-    out.classList.remove('show'); row.classList.remove('open');
-    if(fields.parentNode!==box) box.appendChild(fields);   // devuelve el campo al header
-  }
+  placeFields();
   window.__searchRefresh=()=>{ if(out.classList.contains('show')) render(); };   // refrescar detalle abierto en cada renderAll
   input.addEventListener('input',()=>{ selected=null; render(); });
   input.addEventListener('focus',()=>{ if(input.value) render(); });
   out.addEventListener('click',e=>{ const it=e.target.closest('.sr-item'); if(!it) return; selected=it.dataset.code; input.value=NAME[selected]||selected; render(); });
-  btn.addEventListener('click',e=>{ e.stopPropagation(); openSearch(); });
-  closeBtn.addEventListener('click',()=>{ input.value=''; selected=null; box.classList.remove('has-text'); out.innerHTML=''; closeSearch(); });
-  document.addEventListener('click',e=>{ if(!box.contains(e.target) && !row.contains(e.target)) closeSearch(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeSearch(); input.blur(); } });
-  // si se pasa a desktop con el campo abierto en la fila, devolverlo al header
-  mq.addEventListener('change',e=>{ if(!e.matches){ row.classList.remove('open'); if(fields.parentNode!==box) box.appendChild(fields); } });
+  btn.addEventListener('click',()=>{ input.focus(); if(input.value) render(); });   // desktop: la lupa solo enfoca
+  // la X SOLO limpia lo escrito (la barra/caja queda)
+  closeBtn.addEventListener('click',()=>{ input.value=''; selected=null; fields.classList.remove('has-text'); out.classList.remove('show'); out.innerHTML=''; });
+  // tocar afuera oculta solo los resultados (la barra mobile queda siempre)
+  document.addEventListener('click',e=>{ if(!box.contains(e.target) && !row.contains(e.target)) out.classList.remove('show'); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ out.classList.remove('show'); input.blur(); } });
+  mq.addEventListener('change',placeFields);   // reubicar al cambiar de tamaño
 })();
 
 // Arranque: mostramos la semilla de inmediato (la página nunca queda vacía),
